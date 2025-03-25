@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  compromisoprofesional:
+    image: postgres:latest
+    container_name: compromiso_profesional-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: compromisoprofesional
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
