@@ -20,7 +20,7 @@ builder.Services.AddScoped<ISeeder, Seeder>();
 
 // Add Identity and Entity Framework services
 builder.Services.AddIdentity<ApiUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = false).AddEntityFrameworkStores<APIContext>();
-builder.Services.AddDbContextFactory<APIContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContextFactory<APIContext>(options => options.UseSqlServer(connectionString));
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
