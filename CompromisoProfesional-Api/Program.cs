@@ -1,10 +1,8 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using CompromisoProfesional_Api.DAL.DB;
 using CompromisoProfesional_Api.DAL.Seeding;
-using CompromisoProfesional_Api.Models;
 using CompromisoProfesional_Api.Services;
 using System.Text;
 using CompromisoProfesional_Api.Security;
@@ -18,8 +16,7 @@ var connectionString = builder.Configuration.GetConnectionString("APIContextConn
 ServiceContainer.AddServices(builder.Services);
 builder.Services.AddScoped<ISeeder, Seeder>();
 
-// Add Identity and Entity Framework services
-builder.Services.AddIdentity<ApiUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = false).AddEntityFrameworkStores<APIContext>();
+// Add Entity Framework service
 builder.Services.AddDbContextFactory<APIContext>(options => options.UseSqlServer(connectionString));
 
 builder.Services.AddControllers();
@@ -35,11 +32,7 @@ var key = builder.Configuration["JWT:Key"];
 if (string.IsNullOrEmpty(key))
     throw new InvalidOperationException("JWT key not found.");
 
-builder.Services.AddAuthentication(opt =>
-    {
-        opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.RequireHttpsMetadata = false;
@@ -73,7 +66,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
-Seed();
+await Seed();
 
 app.UseHttpsRedirection();
 
@@ -85,9 +78,9 @@ app.MapControllers();
 
 app.Run();
 
-void Seed()
+async Task Seed()
 {
     using var scope = app.Services.CreateScope();
     var dbSeeder = scope.ServiceProvider.GetRequiredService<ISeeder>();
-    dbSeeder.Seed();
+    await dbSeeder.Seed();
 }

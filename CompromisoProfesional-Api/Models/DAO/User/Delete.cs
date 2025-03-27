@@ -2,6 +2,6 @@
 {
     public class DeleteRequest
     {
-        public string Id { get; set; } = null!;
+        public int Id { get; set; }
     }
 }

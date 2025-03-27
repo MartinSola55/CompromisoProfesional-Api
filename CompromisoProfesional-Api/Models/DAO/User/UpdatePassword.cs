@@ -2,7 +2,7 @@
 {
     public class UpdatePasswordRequest
     {
-        public string? Id { get; set; }
+        public int? Id { get; set; }
         public string Password { get; set; } = null!;
     }
 }

@@ -1,51 +1,62 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using CompromisoProfesional_Api.DAL.DB;
 using CompromisoProfesional_Api.Models;
 using CompromisoProfesional_Api.Models.Constants;
 
 namespace CompromisoProfesional_Api.DAL.Seeding
 {
-    public class Seeder(APIContext db, IConfiguration config, UserManager<ApiUser> userManager, RoleManager<IdentityRole> roleManager) : ISeeder
+    public class Seeder(APIContext db, IConfiguration config) : ISeeder
     {
         private readonly APIContext _db = db;
         private readonly IConfiguration _config = config;
-        private readonly UserManager<ApiUser> _userManager = userManager;
-        private readonly RoleManager<IdentityRole> _roleManager = roleManager;
 
-        public void Seed()
+        public async Task Seed()
         {
             try
             {
-                if (_db.Database.GetPendingMigrations().Any())
+                var tx = await _db.Database.BeginTransactionAsync();
+
+                var migrations = await _db.Database.GetPendingMigrationsAsync();
+
+                if (migrations.Any())
                     _db.Database.Migrate();
 
-                if (_db.Roles.Any(x => x.Name == Roles.ADMIN))
+                if (await _db.Role.AnyAsync(x => x.Name == Roles.ADMIN))
                     return;
 
                 // Create roles
-                foreach (var role in Roles.GetRoles())
-                    _roleManager.CreateAsync(new IdentityRole(role)).GetAwaiter().GetResult();
+                _db.Role.AddRange(Roles.GetRoles().Select(x => new Role { Name = x }));
 
-                var roleId = _db.Roles.Where(r => r.Name == Roles.ADMIN).Select(r => r.Id).FirstOrDefault() ?? throw new Exception("No se ha encontrado el rol");
+                await _db.SaveChangesAsync();
 
-                // Creaet users
-                ApiUser admin = new()
+                var roleId = _db
+                    .Role
+                    .Where(x => x.Name == Roles.ADMIN)
+                    .Select(x => x.Id)
+                    .FirstOrDefault();
+
+                var email = _config["AdminEmail"] ?? "admin@admin";
+                var passwordHash = BCrypt.Net.BCrypt.HashPassword(_config["AdminPassword"] ?? "Password1!");
+;
+                // Create admin user
+                User admin = new()
                 {
-                    UserName = _config["AdminEmail"],
-                    Email = _config["AdminEmail"],
-                    EmailConfirmed = true,
+                    Email = email,
                     Name = "Admin",
                     LastName = "Admin",
-                    RoleId = roleId
+                    RoleId = roleId,
+                    PasswordHash = passwordHash,
                 };
 
-                _userManager.CreateAsync(admin, _config["AdminPassword"] ?? "Password1!").GetAwaiter().GetResult();
+                _db.User.Add(admin);
 
                 SeedProfessions();
+
+                await _db.SaveChangesAsync();
             }
             catch (Exception)
             {
+                await _db.Database.RollbackTransactionAsync();
                 throw;
             }
         }
@@ -58,8 +69,6 @@ namespace CompromisoProfesional_Api.DAL.Seeding
                 new Profession { Name = "Cuidador/a", Type = ProfessionType.HOUR },
                 new Profession { Name = "Kinesiólogo", Type = ProfessionType.VISIT }
             ]);
-
-            _db.SaveChanges();
         }
         #endregion
     }

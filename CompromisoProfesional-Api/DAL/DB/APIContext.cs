@@ -1,24 +1,15 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using CompromisoProfesional_Api.Models;
 
 namespace CompromisoProfesional_Api.DAL.DB;
 
-public class APIContext(DbContextOptions<APIContext> options) : IdentityDbContext<ApiUser>(options)
+public class APIContext(DbContextOptions<APIContext> options) : DbContext(options)
 {
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
-        builder.Entity<ApiUser>().ToTable("User");
-        builder.Entity<IdentityRole>().ToTable("Role");
-        builder.Ignore<IdentityUserRole<string>>();
-        builder.Ignore<IdentityUserToken<string>>();
-        builder.Ignore<IdentityUserClaim<string>>();
-        builder.Ignore<IdentityUserLogin<string>>();
-        builder.Ignore<IdentityRoleClaim<string>>();
 
-        builder.Entity<ApiUser>().HasQueryFilter(x => x.DeletedAt == null);
+        builder.Entity<User>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<Appliance>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<Employee>().HasQueryFilter(x => x.DeletedAt == null);
         builder.Entity<Evolution>().HasQueryFilter(x => x.DeletedAt == null);
@@ -36,8 +27,8 @@ public class APIContext(DbContextOptions<APIContext> options) : IdentityDbContex
     }
 
     // Entities
-    public DbSet<ApiUser> User { get; set; }
-    public DbSet<IdentityRole> Role { get; set; }
+    public DbSet<User> User { get; set; }
+    public DbSet<Role> Role { get; set; }
     public DbSet<Appliance> Appliance { get; set; }
     public DbSet<Employee> Employee { get; set; }
     public DbSet<Evolution> Evolution { get; set; }

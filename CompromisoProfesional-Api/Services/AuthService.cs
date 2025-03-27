@@ -1,17 +1,16 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
-using CompromisoProfesional_Api.Models;
 using CompromisoProfesional_Api.Models.Constants;
 using CompromisoProfesional_Api.Models.DAO;
 using CompromisoProfesional_Api.Models.DAO.Auth;
+using CompromisoProfesional_Api.DAL.DB;
 
 namespace CompromisoProfesional_Api.Services
 {
-    public class AuthService(SignInManager<ApiUser> signInManager, TokenService tokenService)
+    public class AuthService(TokenService tokenService, APIContext context)
     {
-        private readonly SignInManager<ApiUser> _signInManager = signInManager;
         private readonly TokenService _tokenService = tokenService;
+        private readonly APIContext _db = context;
 
         public async Task<GenericResponse<LoginResponse>> Login(LoginRequest rq)
         {
@@ -20,36 +19,25 @@ namespace CompromisoProfesional_Api.Services
             if (string.IsNullOrEmpty(rq.Email) || string.IsNullOrEmpty(rq.Password))
                 return response.SetError(Messages.Error.FieldsRequired(["Email", "Password"]));
 
-            var user = await _signInManager
-                .UserManager
-                .Users
-                .Include(x => x.Role)
-                .FirstOrDefaultAsync(x => x.Email == rq.Email);
-
-            if (user == null || string.IsNullOrEmpty(user.UserName))
-                return response.SetError(Messages.Error.EntityNotFound("Usuario"));
-
             if (!ValidateEmail(rq.Email))
                 return response.SetError(Messages.Error.InvalidEmail());
 
             if (!ValidatePassword(rq.Password))
                 return response.SetError(Messages.Error.InvalidPassword());
 
-            var result = await _signInManager.CheckPasswordSignInAsync(user, rq.Password, lockoutOnFailure: false);
+            var user = await _db
+                .User
+                .Include(x => x.Role)
+                .FirstOrDefaultAsync(x => x.Email == rq.Email);
 
-            if (!result.Succeeded)
-            {
-                if (result.IsLockedOut)
-                    return response.SetError(Messages.Error.BlockedUser());
-                else
-                    return response.SetError(Messages.Error.InvalidLogin());
-            }
+            if (user == null || !ValidateHashedPassword(rq.Password, user.PasswordHash))
+                return response.SetError(Messages.Error.InvalidLogin());
 
             if (user.Role == null)
                 return response.SetError(Messages.Error.UserWithoutRole());
 
             var expiration = DateTime.Now.AddDays(30);
-            var token = _tokenService.GenerateToken(user, user.Role.Name ?? "", expiration);
+            var token = _tokenService.GenerateToken(user, user.Role.Name, expiration);
 
             if (string.IsNullOrEmpty(token))
                 return response.SetError(Messages.Error.TokenCreation());
@@ -61,22 +49,40 @@ namespace CompromisoProfesional_Api.Services
                 User = new LoginResponse.Item
                 {
                     Id = user.Id,
-                    Role = user.Role.NormalizedName ?? "",
+                    Role = user.Role.Name,
                     Name = user.Name,
                     LastName = user.LastName,
-                    Email = user.Email ?? "",
+                    Email = user.Email,
                 }
             };
             return response;
         }
 
-        public async Task<GenericResponse> Logout()
+        public GenericResponse Logout()
         {
             var response = new GenericResponse();
 
-            await _signInManager.SignOutAsync();
+            if (_tokenService.GetToken() == null)
+                return response.SetError(Messages.Error.ExpiredToken());
 
+            // Could add the token to a blacklist, but for now we just return success
             return response;
+        }
+
+        public string HashPassword(string password)
+        {
+            return BCrypt.Net.BCrypt.HashPassword(password);
+        }
+
+        public bool ValidatePassword(string password)
+        {
+            return new bool[] {
+                password.Length >= 8,
+                password.Any(char.IsUpper),
+                password.Any(char.IsLower),
+                password.Any(char.IsDigit),
+                password.Any(c => char.IsPunctuation(c) || char.IsSymbol(c))
+            }.All(x => x);
         }
 
         public bool IsAdmin()
@@ -92,17 +98,9 @@ namespace CompromisoProfesional_Api.Services
         }
 
         #region Private
-
-        private static bool ValidatePassword(string password)
+        private static bool ValidateHashedPassword(string password, string hashedPassword)
         {
-            if (string.IsNullOrEmpty(password) || password.Length < 8)
-                return false;
-
-            string allowedChars = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
-            if (!password.Any(char.IsUpper) || !password.Any(char.IsLower) || !password.Any(char.IsDigit) || !password.Any(allowedChars.Contains))
-                return false;
-
-            return true;
+            return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
         }
 
         private static bool ValidateEmail(string email)

@@ -1,23 +1,23 @@
 ﻿namespace CompromisoProfesional_Api.Models.DAO.User
 {
-    public class GetAllRequest : GenericGetAllRequest
+    public class GetAllRequest : PaginateRequest
     {
         public List<string> Roles { get; set; } = [];
         public DateTime? DateFrom { get; set; }
         public DateTime? DateTo { get; set; }
     }
-    public class GetAllResponse : GenericGetAllResponse
+    public class GetAllResponse : PaginateResponse
     {
         public List<Item> Users { get; set; } = [];
 
         public class Item
         {
-            public string Id { get; set; } = null!;
+            public int Id { get; set; }
             public string Name { get; set; } = null!;
             public string LastName { get; set; } = null!;
             public string? Email { get; set; } = null!;
             public string Role { get; set; } = null!;
-            public string CreatedAt { get; set; } = null!;
+            public DateTime CreatedAt { get; set; }
         }
     }
 }

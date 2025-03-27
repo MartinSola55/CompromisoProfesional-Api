@@ -19,9 +19,9 @@ namespace CompromisoProfesional_Api.Controllers
 
 
         [HttpPost]
-        public async Task<GenericResponse> Logout()
+        public GenericResponse Logout()
         {
-            return await _authService.Logout();
+            return _authService.Logout();
         }
     }
 }

@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using CompromisoProfesional_Api.DAL.DB;
 using CompromisoProfesional_Api.Models;
 using CompromisoProfesional_Api.Models.Constants;
@@ -10,10 +9,9 @@ using System.Data;
 
 namespace CompromisoProfesional_Api.Services
 {
-    public class UserService(APIContext context, UserManager<ApiUser> userManager, TokenService tokenService, AuthService authService)
+    public class UserService(APIContext context, TokenService tokenService, AuthService authService)
     {
         private readonly APIContext _db = context;
-        private readonly UserManager<ApiUser> _userManager = userManager;
         private readonly Token _token = tokenService.GetToken();
         private readonly AuthService _authService = authService;
 
@@ -24,11 +22,11 @@ namespace CompromisoProfesional_Api.Services
             {
                 Data = new GenericComboResponse
                 {
-                    Items = await _db.Roles
+                    Items = await _db.Role
                     .Select(x => new GenericComboResponse.Item
                     {
-                        StringId = x.Id,
-                        Description = x.Name ?? ""
+                        Id = x.Id,
+                        Description = x.Name
                     })
                     .ToListAsync()
                 }
@@ -41,7 +39,7 @@ namespace CompromisoProfesional_Api.Services
             var query = _db
                 .User
                 .Include(x => x.Role)
-                .Where(x => x.Role.NormalizedName == Roles.EMPLOYEE)
+                .Where(x => x.Role.Name == Roles.EMPLOYEE)
                 .OrderBy(x => x.LastName)
                 .ThenBy(x => x.Name)
                 .AsQueryable();
@@ -53,7 +51,7 @@ namespace CompromisoProfesional_Api.Services
                     Items = await query
                     .Select(x => new GenericComboResponse.Item
                     {
-                        StringId = x.Id,
+                        Id = x.Id,
                         Description = x.LastName + ", " + x.Name
                     })
                     .ToListAsync()
@@ -74,8 +72,8 @@ namespace CompromisoProfesional_Api.Services
 
             if (rq.Roles.Count > 0)
             {
-                var roles = await _db.Roles
-                    .Where(x => rq.Roles.Contains(x.NormalizedName))
+                var roles = await _db.Role
+                    .Where(x => rq.Roles.Contains(x.Name))
                     .Select(x => x.Id)
                     .ToListAsync();
 
@@ -93,8 +91,8 @@ namespace CompromisoProfesional_Api.Services
                         Name = x.Name,
                         LastName = x.LastName,
                         Email = x.Email,
-                        CreatedAt = x.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
-                        Role = x.Role.NormalizedName ?? ""
+                        CreatedAt = x.CreatedAt,
+                        Role = x.Role.Name
                     })
                     .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
                     .Take(Pagination.DefaultPageSize)
@@ -121,9 +119,8 @@ namespace CompromisoProfesional_Api.Services
                 Email = user.Email,
                 Name = user.Name,
                 LastName = user.LastName,
-                CreatedAt = user.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
-                Role = user.Role.Id,
-                RoleName = user.Role.NormalizedName ?? ""
+                RoleName = user.Role.Name,
+                CreatedAt = user.CreatedAt
             };
 
             return response;
@@ -133,15 +130,20 @@ namespace CompromisoProfesional_Api.Services
         {
             var response = new GenericResponse<CreateResponse>();
 
+            var role = await _db.Role
+               .Where(x => x.Name == rq.RoleName)
+               .FirstOrDefaultAsync();
+
+            if (role == null)
+                return response.SetError(Messages.Error.EntityNotFound("Rol"));
+
             // Create user and assign role
-            ApiUser user = new()
+            User user = new()
             {
                 Email = rq.Email,
                 Name = rq.Name,
                 LastName = rq.LastName,
-                UserName = rq.Email,
-                EmailConfirmed = true,
-                RoleId = rq.RoleId
+                RoleId = role.Id
             };
 
             // Validate request
@@ -151,37 +153,19 @@ namespace CompromisoProfesional_Api.Services
             if (string.IsNullOrEmpty(rq.Email) || !ValidateEmail(rq.Email))
                 return response.SetError(Messages.Error.InvalidEmail());
 
-            if (string.IsNullOrEmpty(rq.Password) || !ValidatePassword(rq.Password))
+            if (string.IsNullOrEmpty(rq.Password) || !_authService.ValidatePassword(rq.Password))
                 return response.SetError(Messages.Error.InvalidPassword());
 
-            // Validate role
-            if (await _db.Role.FirstOrDefaultAsync(x => x.Id == rq.RoleId) == null)
-                return response.SetError(Messages.Error.EntityNotFound("Rol"));
-
-            if (await _userManager.FindByEmailAsync(rq.Email) != null)
+            if (await _db.User.AnyAsync(x => x.Email == rq.Email))
                 return response.SetError(Messages.Error.DuplicateEmail());
 
             // Save changes
             try
             {
-                await _db.Database.BeginTransactionAsync();
-
-                // Add user
-                var result = _userManager.CreateAsync(user, rq.Password).GetAwaiter().GetResult();
-
-                if (!result.Succeeded)
-                {
-                    await _db.Database.RollbackTransactionAsync();
-                    return response.SetError(Messages.Error.SaveEntity("el usuario"));
-                }
-
-                // Save changes
                 await _db.SaveChangesAsync();
-                await _db.Database.CommitTransactionAsync();
             }
             catch (Exception)
             {
-                await _db.Database.RollbackTransactionAsync();
                 return response.SetError(Messages.Error.Exception());
             }
 
@@ -192,8 +176,9 @@ namespace CompromisoProfesional_Api.Services
                 Email = user.Email,
                 Name = user.Name,
                 LastName = user.LastName,
-                Role = rq.RoleId,
+                Role = role.Name
             };
+
             return response;
         }
 
@@ -212,21 +197,24 @@ namespace CompromisoProfesional_Api.Services
             if (user == null)
                 return response.SetError(Messages.Error.EntityNotFound("Usuario"));
 
+            var role = await _db.Role
+                .FirstOrDefaultAsync(x => x.Name == rq.RoleName);
+
+            if (role == null)
+                return response.SetError(Messages.Error.EntityNotFound("Rol"));
+
             if (_authService.IsAdmin())
             {
                 // Validate email
                 if (!ValidateEmail(rq.Email))
                     return response.SetError(Messages.Error.InvalidEmail());
 
-                // Validate role
-                if (await _db.Role.FirstOrDefaultAsync(x => x.Id == rq.RoleId) == null)
-                    return response.SetError(Messages.Error.EntityNotFound("Rol"));
-
                 // Check if the new email is already in use by another user
-                if (await _db.Users.AnyAsync(x => !string.IsNullOrEmpty(x.Email) && x.Email.ToLower() == rq.Email.ToLower() && x.Id != rq.Id))
+                if (await _db.User.AnyAsync(x => x.Email.ToLower() == rq.Email.ToLower() && x.Id != rq.Id))
                     return response.SetError(Messages.Error.DuplicateEmail());
 
                 // Update user data
+                user.Email = rq.Email;
                 user.Name = rq.Name;
                 user.LastName = rq.LastName;
             }
@@ -239,18 +227,10 @@ namespace CompromisoProfesional_Api.Services
             // Save changes
             try
             {
-                await _db.Database.BeginTransactionAsync();
-
-                // Change email and username. Must be donde inside a transaction
-                await _userManager.SetEmailAsync(user, rq.Email);
-                await _userManager.SetUserNameAsync(user, rq.Email);
-
                 await _db.SaveChangesAsync();
-                await _db.Database.CommitTransactionAsync();
             }
             catch (Exception)
             {
-                await _db.Database.RollbackTransactionAsync();
                 return response.SetError(Messages.Error.Exception());
             }
 
@@ -261,8 +241,9 @@ namespace CompromisoProfesional_Api.Services
                 Email = user.Email,
                 Name = user.Name,
                 LastName = user.LastName,
-                Role = user.Role.NormalizedName ?? ""
+                Role = role.Name
             };
+
             return response;
         }
 
@@ -270,12 +251,9 @@ namespace CompromisoProfesional_Api.Services
         {
             var response = new GenericResponse();
 
-            // Validate request
-            if (string.IsNullOrEmpty(rq.Id))
-                return response.SetError(Messages.Error.FieldsRequired());
-
             // Retrieve user
             var user = await _db.User.FirstOrDefaultAsync(x => x.Id == rq.Id);
+
             if (user == null)
                 return response.SetError(Messages.Error.EntityNotFound("Usuario"));
 
@@ -285,13 +263,10 @@ namespace CompromisoProfesional_Api.Services
             // Save changes
             try
             {
-                await _db.Database.BeginTransactionAsync();
                 await _db.SaveChangesAsync();
-                await _db.Database.CommitTransactionAsync();
             }
             catch (Exception)
             {
-                await _db.Database.RollbackTransactionAsync();
                 return response.SetError(Messages.Error.Exception());
             }
 
@@ -303,18 +278,18 @@ namespace CompromisoProfesional_Api.Services
         {
             var response = new GenericResponse();
 
-            if (!_authService.IsAdmin() && rq.Id != _token.UserId)
+            if (!_authService.IsAdmin() && rq.Id.HasValue && rq.Id.Value != _token.UserId)
                 return response.SetError(Messages.Error.Unauthorized());
 
             // Validate request
             if (string.IsNullOrEmpty(rq.Password))
                 return response.SetError(Messages.Error.FieldsRequired());
 
-            if (!ValidatePassword(rq.Password))
+            if (!_authService.ValidatePassword(rq.Password))
                 return response.SetError(Messages.Error.InvalidPassword());
 
             // Retrieve user
-            var userId = string.IsNullOrEmpty(rq.Id) ? _token.UserId : rq.Id;
+            var userId = rq.Id ?? _token.UserId;
             var user = await _db
                 .User
                 .Include(x => x.Role)
@@ -323,23 +298,15 @@ namespace CompromisoProfesional_Api.Services
             if (user == null)
                 return response.SetError(Messages.Error.EntityNotFound("Usuario"));
 
+            // Update password
+            user.PasswordHash = _authService.HashPassword(rq.Password);
+
             try
             {
-                await _db.Database.BeginTransactionAsync();
-
-                // Update password. Must be done inside a transaction
-                var remove = await _userManager.RemovePasswordAsync(user);
-                var add = await _userManager.AddPasswordAsync(user, rq.Password);
-
-                if (!remove.Succeeded || !add.Succeeded)
-                    return response.SetError(Messages.Error.SaveEntity("la contraseña"));
-
                 await _db.SaveChangesAsync();
-                await _db.Database.CommitTransactionAsync();
             }
             catch (Exception)
             {
-                await _db.Database.RollbackTransactionAsync();
                 return response.SetError(Messages.Error.Exception());
             }
 
@@ -351,21 +318,9 @@ namespace CompromisoProfesional_Api.Services
 
         #region Validations
 
-        private static bool ValidateFields(ApiUser entity)
+        private static bool ValidateFields(User entity)
         {
             if (string.IsNullOrEmpty(entity.Name) || string.IsNullOrEmpty(entity.LastName) || string.IsNullOrEmpty(entity.Email))
-                return false;
-
-            return true;
-        }
-
-        private static bool ValidatePassword(string password)
-        {
-            if (string.IsNullOrEmpty(password) || password.Length < 8)
-                return false;
-
-            string allowedChars = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
-            if (!password.Any(char.IsUpper) || !password.Any(char.IsLower) || !password.Any(char.IsDigit) || !password.Any(allowedChars.Contains))
                 return false;
 
             return true;
@@ -379,7 +334,7 @@ namespace CompromisoProfesional_Api.Services
         #endregion
 
         #region Helpers
-        private static IQueryable<ApiUser> FilterQuery(IQueryable<ApiUser> query, GetAllRequest rq)
+        private static IQueryable<User> FilterQuery(IQueryable<User> query, GetAllRequest rq)
         {
             if (rq.DateFrom.HasValue && rq.DateTo.HasValue && rq.DateFrom <= rq.DateTo)
             {
@@ -392,11 +347,11 @@ namespace CompromisoProfesional_Api.Services
             return query;
         }
 
-        private static IQueryable<ApiUser> OrderQuery(IQueryable<ApiUser> query, string column, string direction)
+        private static IQueryable<User> OrderQuery(IQueryable<User> query, string column, string direction)
         {
             return column switch
             {
-                "createdAt" => direction == "asc" ? query.OrderBy(x => x.CreatedAt) : query.OrderByDescending(x => x.CreatedAt),
+                "createdAt" => direction == SortDirectionCode.ASC ? query.OrderBy(x => x.CreatedAt) : query.OrderByDescending(x => x.CreatedAt),
                 _ => query.OrderByDescending(x => x.CreatedAt),
             };
         }

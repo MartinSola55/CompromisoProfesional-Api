@@ -16,9 +16,11 @@ namespace CompromisoProfesional_Api.Services
             if (_httpContextAccessor.HttpContext == null)
                 throw new Exception("No se ha podido encontrar el token");
 
+            var userIdClaim = _httpContextAccessor.HttpContext.User.Claims.First(x => x.Type == "userId").Value;
+
             return new Token
             {
-                UserId = _httpContextAccessor.HttpContext.User.Claims.First(x => x.Type == "userId").Value,
+                UserId = int.TryParse(userIdClaim, out var userId) ? userId : throw new Exception("Invalid or missing userId claim"),
                 Email = _httpContextAccessor.HttpContext.User.Claims.First(x => x.Type == ClaimTypes.Email).Value,
                 Name = _httpContextAccessor.HttpContext.User.Claims.First(x => x.Type == ClaimTypes.Name).Value,
                 LastName = _httpContextAccessor.HttpContext.User.Claims.First(x => x.Type == ClaimTypes.Surname).Value,
@@ -26,7 +28,7 @@ namespace CompromisoProfesional_Api.Services
             };
         }
 
-        public string? GenerateToken(ApiUser user, string role, DateTime expiration)
+        public string? GenerateToken(User user, string role, DateTime expiration)
         {
             var jwtKey = _config["Jwt:Key"];
 

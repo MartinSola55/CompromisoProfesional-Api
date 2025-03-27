@@ -3,13 +3,13 @@
     public class GenericResponse<T>
     {
         public T? Data { get; set; }
-        public string Message { get; set; } = string.Empty;
+        public string Message { get; set; } = null!;
         public ErrorResponse? Error { get; set; }
         public bool Success => Error == null;
 
         public class ErrorResponse
         {
-            public string Message { get; set; } = string.Empty;
+            public string Message { get; set; } = null!;
             public int Code { get; set; }
         }
 
@@ -37,13 +37,13 @@
     public class GenericResponse
     {
         public object Data { get; set; } = new();
-        public string Message { get; set; } = string.Empty;
+        public string Message { get; set; } = null!;
         public ErrorResponse? Error { get; set; }
         public bool Success => Error == null;
 
         public class ErrorResponse
         {
-            public string Message { get; set; } = string.Empty;
+            public string Message { get; set; } = null!;
             public int Code { get; set; }
         }
 

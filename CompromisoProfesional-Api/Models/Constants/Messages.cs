@@ -80,6 +80,10 @@
             {
                 return "El token ingresado no es válido. Por favor, inicia sesión nuevamente.";
             }
+            public static string ExpiredToken()
+            {
+                return "El token ha expirado. Por favor, inicia sesión nuevamente.";
+            }
             public static string TokenCreation()
             {
                 return "Ha ocurrido un error al intentar crear el token. Por favor, intenta de nuevo.";
