@@ -20,6 +20,10 @@
             {
                 return "Algun" + (femine ? "a" : "o") + " de l" + (femine ? "a" : "o") + "s " + entitiesName + " no pudo ser encontrad" + (femine ? "a" : "o") + ".";
             }
+            public static string EntityWithRelations(string entityName, string relationName, bool entityFemine = false, bool relationFemine = false)
+            {
+                return (entityFemine ? "La " : "El ") + entityName + " no puede ser eliminad" + (entityFemine ? "a" : "o") + " porque tiene " + relationName + " asociad" + (relationFemine ? "a" : "o") + "s a " + (entityFemine ? "ella" : "él") + ".";
+            }
             public static string SaveEntity(string entityName)
             {
                 return "Ha ocurrido un error al intentar guardar " + entityName + ". Por favor, intenta de nuevo.";
@@ -95,10 +99,6 @@
             public static string UserWithoutRole()
             {
                 return "El usuario con el que intentas acceder no posee un rol.";
-            }
-            public static string UserWithoutHavePermission()
-            {
-                return "Tu rol no te permite realizar esta acción.";
             }
             public static string NotEnoughStock(string productName)
             {

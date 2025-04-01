@@ -11,6 +11,7 @@
 
             // Basic CRUDs
             services.AddScoped<ProfessionService>();
+            services.AddScoped<SocialSecurityService>();
         }
     }
 }

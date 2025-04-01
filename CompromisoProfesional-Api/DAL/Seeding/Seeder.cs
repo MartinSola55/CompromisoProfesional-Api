@@ -21,6 +21,7 @@ namespace CompromisoProfesional_Api.DAL.Seeding
                 if (migrations.Any())
                     _db.Database.Migrate();
 
+                // Executed only once when the database is created
                 if (await _db.Role.AnyAsync(x => x.Name == Roles.ADMIN))
                     return;
 

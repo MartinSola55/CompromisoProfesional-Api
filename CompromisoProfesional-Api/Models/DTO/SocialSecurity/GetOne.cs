@@ -1,5 +1,5 @@
 ﻿
-namespace CompromisoProfesional_Api.Models.DTO.Profession
+namespace CompromisoProfesional_Api.Models.DTO.SocialSecurity
 {
     public class GetOneRequest
     {
@@ -10,7 +10,7 @@ namespace CompromisoProfesional_Api.Models.DTO.Profession
     {
         public int Id { get; set; }
         public string Name { get; set; } = null!;
-        public string Type { get; set; } = null!;
+        public string CUIT { get; set; } = null!;
         public List<Item> SuggestedPrices { get; set; } = [];
 
         public class Item
@@ -18,7 +18,7 @@ namespace CompromisoProfesional_Api.Models.DTO.Profession
             public int Id { get; set; }
             public string SocialSecurityName { get; set; } = null!;
             public decimal Price { get; set; }
-            public DateTime LastUpdatedAt { get; set; }
+            public DateTime UpdatedAt { get; set; }
         }
     }
 }

@@ -3,12 +3,12 @@ using CompromisoProfesional_Api.DAL.DB;
 using CompromisoProfesional_Api.Models;
 using CompromisoProfesional_Api.Models.Constants;
 using CompromisoProfesional_Api.Models.DTO;
-using CompromisoProfesional_Api.Models.DTO.Profession;
+using CompromisoProfesional_Api.Models.DTO.SocialSecurity;
 using System.Data;
 
 namespace CompromisoProfesional_Api.Services
 {
-    public class ProfessionService(APIContext context)
+    public class SocialSecurityService(APIContext context)
     {
         private readonly APIContext _db = context;
 
@@ -18,20 +18,26 @@ namespace CompromisoProfesional_Api.Services
             var response = new BaseResponse<GetAllResponse>();
 
             var query = _db
-                .Profession
+                .SocialSecurity
+                .Include(x => x.SuggestedPrices)
                 .AsQueryable();
 
             query = OrderQuery(query, rq);
 
             response.Data = new GetAllResponse
             {
-                Professions = await query
+                SocualSecurities = await query
                 .Select(x => new GetAllResponse.Item
                 {
                     Id = x.Id,
                     Name = x.Name,
-                    Type = x.Type,
-                    CreatedAt = x.CreatedAt
+                    CUIT = x.CUIT,
+                    CreatedAt = x.CreatedAt,
+                    SuggestedPrices = x.SuggestedPrices.Select(x => new GetAllResponse.Item.PriceItem
+                    {
+                        Price = x.Price,
+                        LastUpdatedAt = x.UpdatedAt ?? x.CreatedAt
+                    }).ToList()
                 })
                 .Skip((rq.Page - 1) * Pagination.DefaultPageSize)
                 .Take(Pagination.DefaultPageSize)
@@ -45,30 +51,29 @@ namespace CompromisoProfesional_Api.Services
         {
             var response = new BaseResponse<GetOneResponse>();
 
-            var profession = await _db
-                .Profession
+            var socialSecurity = await _db
+                .SocialSecurity
                 .Where(x => x.Id == rq.Id)
                 .Include(x => x.SuggestedPrices)
-                    .ThenInclude(x => x.SocialSecurity)
                 .Select(x => new GetOneResponse
                 {
                     Id = x.Id,
                     Name = x.Name,
-                    Type = x.Type,
+                    CUIT = x.CUIT,
                     SuggestedPrices = x.SuggestedPrices.Select(x => new GetOneResponse.Item
                     {
                         Id = x.Id,
                         SocialSecurityName = x.SocialSecurity.Name,
                         Price = x.Price,
-                        LastUpdatedAt = x.UpdatedAt ?? x.CreatedAt
+                        UpdatedAt = x.UpdatedAt ?? x.CreatedAt
                     }).ToList()
                 })
                 .FirstOrDefaultAsync();
 
-            if (profession == null)
-                return response.SetError(Messages.Error.EntityNotFound("Profesión", true));
+            if (socialSecurity == null)
+                return response.SetError(Messages.Error.EntityNotFound("Obra social", true));
 
-            response.Data = profession;
+            response.Data = socialSecurity;
 
             return response;
         }
@@ -77,16 +82,16 @@ namespace CompromisoProfesional_Api.Services
         {
             var response = new BaseResponse<CreateResponse>();
 
-            if (string.IsNullOrEmpty(rq.Name) || string.IsNullOrEmpty(rq.Type))
+            if (string.IsNullOrEmpty(rq.Name) || string.IsNullOrEmpty(rq.CUIT))
                 return response.SetError(Messages.Error.FieldsRequired());
 
-            var profession = new Profession
+            var socialSecurity = new SocialSecurity
             {
                 Name = rq.Name,
-                Type = rq.Type,
+                CUIT = rq.CUIT,
             };
 
-            _db.Profession.Add(profession);
+            _db.SocialSecurity.Add(socialSecurity);
 
             // Save changes
             try
@@ -100,9 +105,9 @@ namespace CompromisoProfesional_Api.Services
 
             response.Data = new CreateResponse
             {
-                Id = profession.Id
+                Id = socialSecurity.Id
             };
-            response.Message = Messages.CRUD.EntityCreated("Profesión", true);
+            response.Message = Messages.CRUD.EntityCreated("Obra social", true);
 
             return response;
         }
@@ -111,19 +116,19 @@ namespace CompromisoProfesional_Api.Services
         {
             var response = new BaseResponse();
 
-            var profession = await _db
-                .Profession
+            var socialSecurity = await _db
+                .SocialSecurity
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
-            if (profession == null)
-                return response.SetError(Messages.Error.EntityNotFound("Profesión", true));
-            else if (string.IsNullOrEmpty(rq.Name) || string.IsNullOrEmpty(rq.Type))
+            if (socialSecurity == null)
+                return response.SetError(Messages.Error.EntityNotFound("Obra social", true));
+            else if (string.IsNullOrEmpty(rq.Name) || string.IsNullOrEmpty(rq.CUIT))
                 return response.SetError(Messages.Error.FieldsRequired());
 
             // Update fields
-            profession.Name = rq.Name;
-            profession.Type = rq.Type;
-            profession.UpdatedAt = DateTime.UtcNow;
+            socialSecurity.Name = rq.Name;
+            socialSecurity.CUIT = rq.CUIT;
+            socialSecurity.UpdatedAt = DateTime.UtcNow;
 
             // Save changes
             try
@@ -135,7 +140,7 @@ namespace CompromisoProfesional_Api.Services
                 return response.SetError(Messages.Error.Exception());
             }
 
-            response.Message = Messages.CRUD.EntityUpdated("Profesión", true);
+            response.Message = Messages.CRUD.EntityUpdated("Obra social", true);
 
             return response;
         }
@@ -144,23 +149,23 @@ namespace CompromisoProfesional_Api.Services
         {
             var response = new BaseResponse();
 
-            var profession = await _db
-                .Profession
-                .Include(x => x.Employees)
+            var socialSecurity = await _db
+                .SocialSecurity
+                .Include(x => x.Patients)
                 .Include(x => x.SuggestedPrices)
                 .FirstOrDefaultAsync(x => x.Id == rq.Id);
 
-            if (profession == null)
-                return response.SetError(Messages.Error.EntityNotFound("Profesión", true));
+            if (socialSecurity == null)
+                return response.SetError(Messages.Error.EntityNotFound("Obra social", true));
 
-            if (profession.Employees.Count > 0)
-                return response.SetError(Messages.Error.EntityWithRelations("profesión", "prestadores", true));
+            if (socialSecurity.Patients.Count > 0)
+                return response.SetError(Messages.Error.EntityWithRelations("obra social", "pacientes", true));
 
             // Delete related entities
-            profession.SuggestedPrices.ForEach(x => x.DeletedAt = DateTime.UtcNow);
+            socialSecurity.SuggestedPrices.ForEach(x => x.DeletedAt = DateTime.UtcNow);
 
             // Delete
-            profession.DeletedAt = DateTime.UtcNow;
+            socialSecurity.DeletedAt = DateTime.UtcNow;
 
             // Save changes
             try
@@ -172,13 +177,13 @@ namespace CompromisoProfesional_Api.Services
                 return response.SetError(Messages.Error.Exception());
             }
 
-            response.Message = Messages.CRUD.EntityDeleted("Profesión", true);
+            response.Message = Messages.CRUD.EntityDeleted("Obra social", true);
             return response;
         }
         #endregion
 
         #region Helpers
-        private static IQueryable<Profession> OrderQuery(IQueryable<Profession> query, PaginateRequest rq)
+        private static IQueryable<SocialSecurity> OrderQuery(IQueryable<SocialSecurity> query, PaginateRequest rq)
         {
             return rq.ColumnSort switch
             {
