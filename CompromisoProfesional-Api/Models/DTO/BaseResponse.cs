@@ -1,6 +1,6 @@
-﻿namespace CompromisoProfesional_Api.Models.DAO
+﻿namespace CompromisoProfesional_Api.Models.DTO
 {
-    public class GenericResponse<T>
+    public class BaseResponse<T>
     {
         public T? Data { get; set; }
         public string Message { get; set; } = null!;
@@ -13,7 +13,7 @@
             public int Code { get; set; }
         }
 
-        public GenericResponse<T> SetError(string error)
+        public BaseResponse<T> SetError(string error)
         {
             Error = new ErrorResponse
             {
@@ -23,7 +23,7 @@
             return this;
         }
 
-        public GenericResponse<T> Attach(GenericResponse<T> response)
+        public BaseResponse<T> Attach(BaseResponse<T> response)
         {
             if (Error == null && response.Error != null)
             {
@@ -34,7 +34,7 @@
         }
     }
 
-    public class GenericResponse
+    public class BaseResponse
     {
         public object Data { get; set; } = new();
         public string Message { get; set; } = null!;
@@ -47,7 +47,7 @@
             public int Code { get; set; }
         }
 
-        public GenericResponse SetError(string error)
+        public BaseResponse SetError(string error)
         {
             Error = new ErrorResponse
             {
@@ -57,7 +57,7 @@
             return this;
         }
 
-        public GenericResponse Attach(GenericResponse response)
+        public BaseResponse Attach(BaseResponse response)
         {
             if (Error == null && response.Error != null)
             {

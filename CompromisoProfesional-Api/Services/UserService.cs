@@ -2,8 +2,8 @@
 using CompromisoProfesional_Api.DAL.DB;
 using CompromisoProfesional_Api.Models;
 using CompromisoProfesional_Api.Models.Constants;
-using CompromisoProfesional_Api.Models.DAO;
-using CompromisoProfesional_Api.Models.DAO.User;
+using CompromisoProfesional_Api.Models.DTO;
+using CompromisoProfesional_Api.Models.DTO.User;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 
@@ -15,15 +15,15 @@ namespace CompromisoProfesional_Api.Services
         private readonly Token _token = tokenService.GetToken();
         private readonly AuthService _authService = authService;
 
-        #region Methods
-        public async Task<GenericResponse<GenericComboResponse>> GetComboRoles()
+        #region Combos
+        public async Task<BaseResponse<BaseComboResponse>> GetComboRoles()
         {
-            var response = new GenericResponse<GenericComboResponse>
+            var response = new BaseResponse<BaseComboResponse>
             {
-                Data = new GenericComboResponse
+                Data = new BaseComboResponse
                 {
                     Items = await _db.Role
-                    .Select(x => new GenericComboResponse.Item
+                    .Select(x => new BaseComboResponse.Item
                     {
                         Id = x.Id,
                         Description = x.Name
@@ -34,7 +34,7 @@ namespace CompromisoProfesional_Api.Services
             return response;
         }
 
-        public async Task<GenericResponse<GenericComboResponse>> GetComboEmployees()
+        public async Task<BaseResponse<BaseComboResponse>> GetComboEmployees()
         {
             var query = _db
                 .User
@@ -44,12 +44,12 @@ namespace CompromisoProfesional_Api.Services
                 .ThenBy(x => x.Name)
                 .AsQueryable();
 
-            var response = new GenericResponse<GenericComboResponse>
+            var response = new BaseResponse<BaseComboResponse>
             {
-                Data = new GenericComboResponse
+                Data = new BaseComboResponse
                 {
                     Items = await query
-                    .Select(x => new GenericComboResponse.Item
+                    .Select(x => new BaseComboResponse.Item
                     {
                         Id = x.Id,
                         Description = x.LastName + ", " + x.Name
@@ -59,13 +59,15 @@ namespace CompromisoProfesional_Api.Services
             };
             return response;
         }
+        #endregion
 
-        public async Task<GenericResponse<GetAllResponse>> GetAll(GetAllRequest rq)
+        #region CRUD
+        public async Task<BaseResponse<GetAllResponse>> GetAll(GetAllRequest rq)
         {
             var query = _db.User.AsQueryable();
 
             query = FilterQuery(query, rq);
-            query = OrderQuery(query, rq.ColumnSort, rq.SortDirection);
+            query = OrderQuery(query, rq);
 
             if (!_authService.IsAdmin())
                 query = query.Where(x => x.Id == _token.UserId);
@@ -80,11 +82,10 @@ namespace CompromisoProfesional_Api.Services
                 query = query.Where(x => roles.Contains(x.Role.Id));
             }
 
-            var response = new GenericResponse<GetAllResponse>
+            var response = new BaseResponse<GetAllResponse>
             {
                 Data = new GetAllResponse
                 {
-                    TotalCount = await query.CountAsync(),
                     Users = await query.Select(x => new GetAllResponse.Item
                     {
                         Id = x.Id,
@@ -102,9 +103,9 @@ namespace CompromisoProfesional_Api.Services
             return response;
         }
 
-        public async Task<GenericResponse<GetOneResponse>> GetOneById(GetOneRequest rq)
+        public async Task<BaseResponse<GetOneResponse>> GetOneById(GetOneRequest rq)
         {
-            var response = new GenericResponse<GetOneResponse>();
+            var response = new BaseResponse<GetOneResponse>();
             var user = await _db
                 .User
                 .Include(x => x.Role)
@@ -126,9 +127,9 @@ namespace CompromisoProfesional_Api.Services
             return response;
         }
 
-        public async Task<GenericResponse<CreateResponse>> Create(CreateRequest rq)
+        public async Task<BaseResponse<CreateResponse>> Create(CreateRequest rq)
         {
-            var response = new GenericResponse<CreateResponse>();
+            var response = new BaseResponse<CreateResponse>();
 
             var role = await _db.Role
                .Where(x => x.Name == rq.RoleName)
@@ -182,9 +183,9 @@ namespace CompromisoProfesional_Api.Services
             return response;
         }
 
-        public async Task<GenericResponse<UpdateResponse>> Update(UpdateRequest rq)
+        public async Task<BaseResponse<UpdateResponse>> Update(UpdateRequest rq)
         {
-            var response = new GenericResponse<UpdateResponse>();
+            var response = new BaseResponse<UpdateResponse>();
 
             if (!_authService.IsAdmin() && rq.Id != _token.UserId)
                 return response.SetError(Messages.Error.Unauthorized());
@@ -247,9 +248,9 @@ namespace CompromisoProfesional_Api.Services
             return response;
         }
 
-        public async Task<GenericResponse> Delete(DeleteRequest rq)
+        public async Task<BaseResponse> Delete(DeleteRequest rq)
         {
-            var response = new GenericResponse();
+            var response = new BaseResponse();
 
             // Retrieve user
             var user = await _db.User.FirstOrDefaultAsync(x => x.Id == rq.Id);
@@ -274,9 +275,12 @@ namespace CompromisoProfesional_Api.Services
             return response;
         }
 
-        public async Task<GenericResponse> UpdatePassword(UpdatePasswordRequest rq)
+        #endregion
+
+        #region Methods
+        public async Task<BaseResponse> UpdatePassword(UpdatePasswordRequest rq)
         {
-            var response = new GenericResponse();
+            var response = new BaseResponse();
 
             if (!_authService.IsAdmin() && rq.Id.HasValue && rq.Id.Value != _token.UserId)
                 return response.SetError(Messages.Error.Unauthorized());
@@ -347,11 +351,11 @@ namespace CompromisoProfesional_Api.Services
             return query;
         }
 
-        private static IQueryable<User> OrderQuery(IQueryable<User> query, string column, string direction)
+        private static IQueryable<User> OrderQuery(IQueryable<User> query, PaginateRequest rq)
         {
-            return column switch
+            return rq.ColumnSort switch
             {
-                "createdAt" => direction == SortDirectionCode.ASC ? query.OrderBy(x => x.CreatedAt) : query.OrderByDescending(x => x.CreatedAt),
+                "createdAt" => rq.SortDirection == SortDirectionCode.ASC ? query.OrderBy(x => x.CreatedAt) : query.OrderByDescending(x => x.CreatedAt),
                 _ => query.OrderByDescending(x => x.CreatedAt),
             };
         }

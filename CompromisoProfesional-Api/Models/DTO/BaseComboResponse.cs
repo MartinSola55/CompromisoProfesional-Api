@@ -1,6 +1,6 @@
-﻿namespace CompromisoProfesional_Api.Models.DAO
+﻿namespace CompromisoProfesional_Api.Models.DTO
 {
-    public class GenericComboResponse
+    public class BaseComboResponse
     {
         public List<Item> Items { get; set; } = [];
 

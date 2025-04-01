@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using CompromisoProfesional_Api.Models.Constants;
-using CompromisoProfesional_Api.Models.DAO;
-using CompromisoProfesional_Api.Models.DAO.Auth;
+using CompromisoProfesional_Api.Models.DTO;
+using CompromisoProfesional_Api.Models.DTO.Auth;
 using CompromisoProfesional_Api.DAL.DB;
 
 namespace CompromisoProfesional_Api.Services
@@ -12,9 +12,9 @@ namespace CompromisoProfesional_Api.Services
         private readonly TokenService _tokenService = tokenService;
         private readonly APIContext _db = context;
 
-        public async Task<GenericResponse<LoginResponse>> Login(LoginRequest rq)
+        public async Task<BaseResponse<LoginResponse>> Login(LoginRequest rq)
         {
-            var response = new GenericResponse<LoginResponse>();
+            var response = new BaseResponse<LoginResponse>();
 
             if (string.IsNullOrEmpty(rq.Email) || string.IsNullOrEmpty(rq.Password))
                 return response.SetError(Messages.Error.FieldsRequired(["Email", "Password"]));
@@ -58,9 +58,9 @@ namespace CompromisoProfesional_Api.Services
             return response;
         }
 
-        public GenericResponse Logout()
+        public BaseResponse Logout()
         {
-            var response = new GenericResponse();
+            var response = new BaseResponse();
 
             if (_tokenService.GetToken() == null)
                 return response.SetError(Messages.Error.ExpiredToken());

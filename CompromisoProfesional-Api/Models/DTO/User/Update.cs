@@ -1,4 +1,4 @@
-﻿namespace CompromisoProfesional_Api.Models.DAO.User
+﻿namespace CompromisoProfesional_Api.Models.DTO.User
 {
     public class UpdateRequest : CreateRequest
     {

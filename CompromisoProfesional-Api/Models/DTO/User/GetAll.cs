@@ -1,4 +1,4 @@
-﻿namespace CompromisoProfesional_Api.Models.DAO.User
+﻿namespace CompromisoProfesional_Api.Models.DTO.User
 {
     public class GetAllRequest : PaginateRequest
     {
@@ -6,7 +6,8 @@
         public DateTime? DateFrom { get; set; }
         public DateTime? DateTo { get; set; }
     }
-    public class GetAllResponse : PaginateResponse
+
+    public class GetAllResponse
     {
         public List<Item> Users { get; set; } = [];
 
@@ -15,7 +16,7 @@
             public int Id { get; set; }
             public string Name { get; set; } = null!;
             public string LastName { get; set; } = null!;
-            public string? Email { get; set; } = null!;
+            public string Email { get; set; } = null!;
             public string Role { get; set; } = null!;
             public DateTime CreatedAt { get; set; }
         }

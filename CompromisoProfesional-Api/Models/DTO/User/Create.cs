@@ -1,8 +1,8 @@
-﻿namespace CompromisoProfesional_Api.Models.DAO.User
+﻿namespace CompromisoProfesional_Api.Models.DTO.User
 {
     public class CreateRequest
     {
-        public string? Password { get; set; } = null!;
+        public string Password { get; set; } = null!;
         public string RoleName { get; set; } = null!;
         public string Name { get; set; } = null!;
         public string LastName { get; set; } = null!;

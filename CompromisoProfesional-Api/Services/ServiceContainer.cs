@@ -4,10 +4,13 @@
     {
         public static void AddServices(IServiceCollection services)
         {
-            // General
+            // User and Auth
             services.AddScoped<TokenService>();
             services.AddScoped<AuthService>();
             services.AddScoped<UserService>();
+
+            // Basic CRUDs
+            services.AddScoped<ProfessionService>();
         }
     }
 }

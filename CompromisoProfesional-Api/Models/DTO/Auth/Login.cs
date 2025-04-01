@@ -1,4 +1,4 @@
-﻿namespace CompromisoProfesional_Api.Models.DAO.Auth
+﻿namespace CompromisoProfesional_Api.Models.DTO.Auth
 {
     public class LoginRequest
     {
